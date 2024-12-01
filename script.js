@@ -1,80 +1,141 @@
 let boxes = document.querySelectorAll(".box");
-
 let turn = "X";
 let isGameOver = false;
 
-boxes.forEach(e =>{
-    e.innerHTML = ""
-    e.addEventListener("click", ()=>{
-        if(!isGameOver && e.innerHTML === ""){
-            e.innerHTML = turn;
-            cheakWin();
-            cheakDraw();
-            changeTurn();
-        }
-    })
-})
+// Initialize game board
+let board = Array(9).fill("");
 
-function changeTurn(){
-    if(turn === "X"){
-        turn = "O";
-        document.querySelector(".bg").style.left = "85px";
-    }
-    else{
-        turn = "X";
-        document.querySelector(".bg").style.left = "0";
+// Add event listeners for user clicks
+boxes.forEach((box, index) => {
+    box.innerHTML = "";
+    box.addEventListener("click", () => {
+        if (!isGameOver && board[index] === "") {
+            board[index] = turn;
+            box.innerHTML = turn;
+            checkWin();
+            checkDraw();
+            if (!isGameOver) {
+                changeTurn();
+                if (turn === "O") {
+                    setTimeout(() => aiMove(), 500); // AI makes its move
+                }
+            }
+        }
+    });
+});
+
+function changeTurn() {
+    turn = turn === "X" ? "O" : "X";
+    document.querySelector(".bg").style.left = turn === "X" ? "0" : "85px";
+}
+
+function checkWin() {
+    const winConditions = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6],
+    ];
+
+    for (let condition of winConditions) {
+        const [a, b, c] = condition;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            isGameOver = true;
+            document.querySelector("#results").innerHTML = `${turn} wins!`;
+            document.querySelector("#play-again").style.display = "inline";
+            condition.forEach(i => {
+                boxes[i].style.backgroundColor = "#08D9D6";
+                boxes[i].style.color = "#000";
+            });
+            return;
+        }
     }
 }
 
-function cheakWin(){
-    let winConditions = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],
-        [0, 4, 8], [2, 4, 6]
-    ]
-    for(let i = 0; i<winConditions.length; i++){
-        let v0 = boxes[winConditions[i][0]].innerHTML;
-        let v1 = boxes[winConditions[i][1]].innerHTML;
-        let v2 = boxes[winConditions[i][2]].innerHTML;
+function checkDraw() {
+    if (!isGameOver && board.every(cell => cell !== "")) {
+        isGameOver = true;
+        document.querySelector("#results").innerHTML = "It's a draw!";
+        document.querySelector("#play-again").style.display = "inline";
+    }
+}
 
-        if(v0 != "" && v0 === v1 && v0 === v2){
-            isGameOver = true;
-            document.querySelector("#results").innerHTML = turn + " win";
-            document.querySelector("#play-again").style.display = "inline"
+function aiMove() {
+    const bestMove = findBestMove();
+    if (bestMove !== -1) {
+        board[bestMove] = turn;
+        boxes[bestMove].innerHTML = turn;
+        checkWin();
+        checkDraw();
+        if (!isGameOver) changeTurn();
+    }
+}
 
-            for(j = 0; j<3; j++){
-                boxes[winConditions[i][j]].style.backgroundColor = "#08D9D6"
-                boxes[winConditions[i][j]].style.color = "#000"
+// Minimax Algorithm for AI Decision-Making
+function minimax(isMaximizing) {
+    const winner = evaluateBoard();
+    if (winner) return winner === "X" ? -1 : winner === "O" ? 1 : 0;
+
+    if (board.every(cell => cell !== "")) return 0;
+
+    let bestScore = isMaximizing ? -Infinity : Infinity;
+
+    for (let i = 0; i < board.length; i++) {
+        if (board[i] === "") {
+            board[i] = isMaximizing ? "O" : "X";
+            let score = minimax(!isMaximizing);
+            board[i] = "";
+            bestScore = isMaximizing
+                ? Math.max(score, bestScore)
+                : Math.min(score, bestScore);
+        }
+    }
+    return bestScore;
+}
+
+function findBestMove() {
+    let bestMove = -1;
+    let bestScore = -Infinity;
+
+    for (let i = 0; i < board.length; i++) {
+        if (board[i] === "") {
+            board[i] = "O";
+            let score = minimax(false);
+            board[i] = "";
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = i;
             }
         }
     }
+    return bestMove;
 }
 
-function cheakDraw(){
-    if(!isGameOver){
-        let isDraw = true;
-        boxes.forEach(e =>{
-            if(e.innerHTML === "") isDraw = false;
-        })
+function evaluateBoard() {
+    const winConditions = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6],
+    ];
 
-        if(isDraw){
-            isGameOver = true;
-            document.querySelector("#results").innerHTML = "Draw";
-            document.querySelector("#play-again").style.display = "inline"
+    for (let condition of winConditions) {
+        const [a, b, c] = condition;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a];
         }
     }
+    return null;
 }
 
-document.querySelector("#play-again").addEventListener("click", ()=>{
+document.querySelector("#play-again").addEventListener("click", () => {
     isGameOver = false;
     turn = "X";
+    board = Array(9).fill("");
     document.querySelector(".bg").style.left = "0";
     document.querySelector("#results").innerHTML = "";
     document.querySelector("#play-again").style.display = "none";
-
-    boxes.forEach(e =>{
-        e.innerHTML = "";
-        e.style.removeProperty("background-color");
-        e.style.color = "#fff"
-    })
-})
+    boxes.forEach(box => {
+        box.innerHTML = "";
+        box.style.removeProperty("background-color");
+        box.style.color = "#000";
+    });
+});
